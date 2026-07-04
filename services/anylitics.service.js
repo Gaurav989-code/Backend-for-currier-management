@@ -25,56 +25,47 @@ const toMonthKey = (date) => {
 export const getLastMonths = (n) => {
   const now = new Date();
   const months = [];
-
   for (let i = n - 1; i >= 0; i -= 1) {
     const date = new Date(now.getFullYear(), now.getMonth() - i, 1);
     months.push({
       key: toMonthKey(date),
       month: month_labels[date.getMonth()],
-      year: new Date(date.getFullYear(), date.getMonth(), 1),
+      // Set to the first day of that month for Mongo matching
+      start: new Date(date.getFullYear(), date.getMonth(), 1),
     });
   }
-
   return months;
 };
 
 const arrayToKeyedMap = (rows, keyField, valueField) => {
   const out = {};
-
   for (const row of rows) {
     if (row && row[keyField] !== undefined) {
       out[row[keyField]] = row[valueField] || 0;
     }
   }
-
   return out;
 };
 
+// Added missing return keyword inside helper function
 const monthKeyProject = (groupIdPath) => {
-  $concat: [
-    {
-      $toString: `${groupIdPath}.year`,
-    },
-    "-",
-    {
-      $cond: [
-        {
-          $lt: [`${groupIdPath}.month`, 10],
-        },
-        {
-          $concat: ["0", { $toString: `${groupIdPath}.month` }],
-        },
-        {
-          $toString: `${groupIdPath}.month`,
-        },
-      ],
-    },
-  ];
+  return {
+    $concat: [
+      { $toString: `${groupIdPath}.year` },
+      "-",
+      {
+        $cond: [
+          { $lt: [`${groupIdPath}.month`, 10] },
+          { $concat: ["0", { $toString: `${groupIdPath}.month` }] },
+          { $toString: `${groupIdPath}.month` },
+        ],
+      },
+    ],
+  };
 };
 
-export const getAnalytics = async () => {
+export const getDashboardStatsData = async () => {
   const months = getLastMonths(12);
-
   const startDate = months[0].start;
 
   const [
@@ -89,69 +80,49 @@ export const getAnalytics = async () => {
   ] = await Promise.all([
     Parcel.countDocuments(),
     User.countDocuments(),
+    Parcel.aggregate([{ $group: { _id: null, revenue: { $sum: "$price" } } }]),
     Parcel.aggregate([
-      {
-        $group: { _id: null, revenue: { $sum: "$price" } },
-      },
-    ]),
-
-    Parcel.aggregate([
-      {
-        $match: { createdAt: { $gte: startDate } },
-      },
+      // Fixed: MongoDB fields require '$' prefix in stage queries
+      { $match: { createdAt: { $gte: startDate } } },
       {
         $group: {
           _id: {
-            year: { $year: "createdAt" },
-            month: { $month: "createdAt" },
+            year: { $year: "$createdAt" },
+            month: { $month: "$createdAt" },
           },
-
           parcels: { $sum: 1 },
         },
       },
-      {
-        $project: { _id: 0, key: monthKeyProject("$_id"), parcels: 1 },
-      },
+      { $project: { _id: 0, key: monthKeyProject("$_id"), parcels: 1 } },
     ]),
-
     Parcel.aggregate([
-      {
-        $match: { createdAt: { $gte: startDate } },
-      },
+      // Fixed: MongoDB fields require '$' prefix in stage queries
+      { $match: { createdAt: { $gte: startDate } } },
       {
         $group: {
           _id: {
-            year: { $year: "createdAt" },
-            month: { $month: "createdAt" },
+            year: { $year: "$createdAt" },
+            month: { $month: "$createdAt" },
           },
-
           revenue: { $sum: "$price" },
         },
       },
-      {
-        $project: { _id: 0, key: monthKeyProject("$_id"), revenue: 1 },
-      },
+      { $project: { _id: 0, key: monthKeyProject("$_id"), revenue: 1 } },
     ]),
-
     User.aggregate([
-      {
-        $match: { createdAt: { $gte: startDate } },
-      },
+      // Fixed: MongoDB fields require '$' prefix in stage queries
+      { $match: { createdAt: { $gte: startDate } } },
       {
         $group: {
           _id: {
-            year: { $year: "createdAt" },
-            month: { $month: "createdAt" },
+            year: { $year: "$createdAt" },
+            month: { $month: "$createdAt" },
           },
-
           users: { $sum: 1 },
         },
       },
-      {
-        $project: { _id: 0, key: monthKeyProject("$_id"), users: 1 },
-      },
+      { $project: { _id: 0, key: monthKeyProject("$_id"), users: 1 } },
     ]),
-
     Parcel.aggregate([
       {
         $project: {
@@ -160,17 +131,16 @@ export const getAnalytics = async () => {
           },
         },
       },
-      {
-        $group: { _id: "currentStatus", value: { $sum: 1 } },
-      },
+      // Fixed: typo syntax "_id: 'currentStatus'" grouping all items together
+      { $group: { _id: "$currentStatus", value: { $sum: 1 } } },
       { $project: { _id: 0, status: "$_id", value: 1 } },
     ]),
-
     Parcel.aggregate([
       {
         $bucket: {
           groupBy: "$weight",
-          boundaries: [0, 1, 2, 3, 5, 10, 30, 40, 50, 1000],
+          // Match boundaries to the simplified JS conditional loop output ranges
+          boundaries: [0, 1, 3, 5, 10, Infinity],
           default: "unknown",
           output: { count: { $sum: 1 } },
         },
@@ -179,21 +149,20 @@ export const getAnalytics = async () => {
   ]);
 
   const totalRevenue = totalRevenueAgg?.[0]?.revenue || 0;
-
   const parcelsByMonth = arrayToKeyedMap(parcelsPerMonthAgg, "key", "parcels");
-
   const revenueByMonth = arrayToKeyedMap(revenuePerMonthAgg, "key", "revenue");
-
   const usersByMonth = arrayToKeyedMap(usersPerMonthAgg, "key", "users");
 
   const monthlyParcels = months.map((m) => ({
     month: m.month,
     parcels: parcelsByMonth[m.key] || 0,
   }));
+
   const monthlyRevenue = months.map((m) => ({
     month: m.month,
     revenue: revenueByMonth[m.key] || 0,
   }));
+
   const userGrowth = months.map((m) => ({
     month: m.month,
     user: usersByMonth[m.key] || 0,
@@ -218,11 +187,14 @@ export const getAnalytics = async () => {
   ];
 
   for (const bucket of weightBucketAgg) {
-    if (bucket._id === 0) weightDistrubution[0].count = bucket.count;
-    else if (bucket._id === 1) weightDistrubution[1].count = bucket.count;
-    else if (bucket._id === 2) weightDistrubution[2].count = bucket.count;
-    else if (bucket._id === 3) weightDistrubution[3].count = bucket.count;
-    else if (bucket._id === 4) weightDistrubution[4].count = bucket.count;
+    // Fixed typos: spelling of 'weightDistribution' variable
+    if (bucket._id === 0) weightDistribution[0].count = bucket.count;
+    else if (bucket._id === 1) weightDistribution[1].count = bucket.count;
+    else if (bucket._id === 2) weightDistribution[2].count = bucket.count;
+    else if (bucket._id === 3) weightDistribution[3].count = bucket.count;
+    // Aggregation buckets default or upper bounds can map to the 10+ category
+    else if (bucket._id === 10 || bucket._id === "unknown")
+      weightDistribution[4].count += bucket.count;
   }
 
   return {
@@ -235,5 +207,3 @@ export const getAnalytics = async () => {
     _meta: { startDate, months },
   };
 };
-
-
