@@ -1,5 +1,5 @@
-import { Parcel } from "../models/parcelSchema";
-import { User } from "../models/userSchema";
+import { Parcel } from "../models/parcelSchema.js";
+import { User } from "../models/userSchema.js";
 
 const month_labels = [
   "Jan",

@@ -1,8 +1,8 @@
-import { Parcel } from "../models/parcelSchema";
+import { Parcel } from "../models/parcelSchema.js";
 import {
   getDashboardStatsData,
   getLastMonths,
-} from "../services/anylitics.service";
+} from "../services/anylitics.service.js";
 
 // CONSIDERATION: To optimize performance, refactor your analytics service
 // to expose a lighter, dedicated function for fetching just monthly revenue.
@@ -117,7 +117,7 @@ export const getDeliveryPerformance = async (req, res, next) => {
   }
 };
 
-const getAnalyticsSummary = async (req, res, next) => {
+export const getAnalyticsSummary = async (req, res, next) => {
   try {
     const data = await getDashboardStatsData();
     const citiesServed = (await Parcel.distinct("destinationCity")).filter(
