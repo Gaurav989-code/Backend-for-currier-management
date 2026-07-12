@@ -52,12 +52,28 @@ export const addCheckPointSchema = joi.object({
     .required(),
 });
 
-
 export const calculateCostSchema = joi.object({
   originCity: joi.string().min(2).max(100).required(),
   destinationCity: joi.string().min(2).max(100).required(),
   shipmentType: joi.string().valid("national", "international").required(),
-  parcelCategory: joi.string().valid("documents", "fragile", "food", "cosmetics", "books", "electronics", "clothing", "small_packages", "large_packages").required(),
+  parcelCategory: joi
+    .string()
+    .valid(
+      "documents",
+      "fragile",
+      "medicine",
+      "food",
+      "cosmetics",
+      "books",
+      "electronics",
+      "clothing",
+      "small_packages",
+      "large_packages",
+    )
+    .required(),
   weight: joi.number().positive().required(),
-  deliveryType: joi.string().valid("sameDay", "overnight", "standard").required(),
+  deliveryType: joi
+    .string()
+    .valid("sameDay", "overnight", "standard")
+    .required(),
 });
