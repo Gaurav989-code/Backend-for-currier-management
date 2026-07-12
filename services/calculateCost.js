@@ -1,34 +1,36 @@
+// Base logistics speed/tier modifiers in India 
 const DELIVERY_TYPE_CHARGES = {
-  sameDay: 200,
-  overnight: 100,
-  standard: 0,
+  sameDay: 150,    // Premium hyperlocal/same-day air or surface
+  overnight: 90,   // Standard Express Air (Next day between metros)
+  standard: 45,    // Economical surface shipping (Base rate for 500g)
 };
 
+// Category weight/handling variations for National (Pan-India) shipping
 const NATIONAL_CATEGORY_CHARGES = {
-  document: -100,
-  electronics: 150,
-  fragile: 250,
-  clothing: 0,
-  food: 120,
-  medicine: 150,
-  cosmetics: 100,
-  books: -20,
-  small_package: 100,
-  large_package: 250,
+  documents: 0,         // Base weight under 50g (Standard flat rate)
+  electronics: 80,      // Requires handling/insurance surcharges
+  fragile: 120,         // Bubble wrap/special handling fee
+  clothing: 15,         // Average 0.5kg apparel parcel volumetric modifier
+  food: 50,             // Special secure packaging for perishables
+  cosmetics: 30,        // Semi-fragile liquid/powder protection
+  books: 10,            // Heavy dead-weight adjustment
+  small_packages: 40,   // Packages between 0.5kg - 1kg
+  large_packages: 180,  // Heavy or volumetric surface cargo (Over 2kg)
 };
 
+// Global cross-border priority cargo modifiers out of India
 const INTERNATIONAL_CATEGORY_CHARGES = {
-  document: 400,
-  electronics: 3000,
-  fragile: 500,
-  clothing: 150,
-  food: 250,
-  medicine: 300,
-  cosmetics: 200,
-  books: 80,
-  small_package: 250,
-  large_package: 550,
+  documents: 1200,      // Flat global document rate (under 250g)
+  electronics: 2800,    // High customs clearance, risk, and weight handling
+  fragile: 1500,        // Rigid wood-crate formatting/international safety wrap
+  clothing: 600,        // Boxed export configuration
+  food: 900,            // International FDA/customs health certificate clearance
+  cosmetics: 800,       // International chemical/liquid flight declarations
+  books: 700,           // High international dead-weight logistics cost
+  small_packages: 1600, // Standard 0.5kg - 1kg international parcel box
+  large_packages: 3500, // Heavy global express air freight base modifier
 };
+
 
 export const calculateCost = ({
   originCity,
